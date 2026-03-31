@@ -100,3 +100,63 @@ exports.getLessonMCQ = (req, res) => {
     });
   });
 };
+
+exports.enrollLesson = (req, res) => {
+  const userId = req.user.id;
+  const { lesson_id } = req.body;
+
+  db.query(
+    "INSERT INTO user_lesson (user_id, lesson_id) VALUES (?, ?)",
+    [userId, lesson_id],
+    (err) => {
+      if (err) return res.status(500).send(err);
+
+      res.send({
+        status: true,
+        message: "Enrolled successfully"
+      });
+    }
+  );
+};
+
+exports.getUserLessons = (req, res) => {
+  const userId = req.user.id;
+
+  const sql = `
+    SELECT l.*, ul.status, ul.progress
+    FROM user_lesson ul
+    JOIN lessons l ON l.id = ul.lesson_id
+    WHERE ul.user_id = ?
+  `;
+
+  db.query(sql, [userId], (err, result) => {
+    if (err) return res.status(500).send(err);
+
+    res.send({
+      status: true,
+      data: result
+    });
+  });
+};
+
+exports.updateLessonProgress = (req, res) => {
+  const userId = req.user.id;
+  const { lesson_id, progress } = req.body;
+
+  const status = progress >= 100 ? "completed" : "enrolled";
+
+  db.query(
+    `UPDATE user_lesson 
+     SET progress = ?, status = ? 
+     WHERE user_id = ? AND lesson_id = ?`,
+    [progress, status, userId, lesson_id],
+    (err) => {
+      if (err) return res.status(500).send(err);
+
+      res.send({
+        status: true,
+        message: "Progress updated"
+      });
+    }
+  );
+};
