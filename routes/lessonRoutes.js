@@ -15,6 +15,12 @@ router.get("/:lesson_id/mcq", authMiddleware, lesson.getLessonMCQ);
 
 router.post("/enroll", authMiddleware, lesson.enrollLesson);
 router.get("/my-lessons", authMiddleware, lesson.getUserLessons);
+router.get("/lessons", authMiddleware, lesson.getAllLessons);
 router.post("/progress", authMiddleware, lesson.updateLessonProgress);
+
+router.get("/:lesson_id/word-count", authMiddleware, lesson.getLessonWordCount);
+router.get("/:lesson_id/attempted", authMiddleware, lesson.getAttemptedWords);
+router.get("/:lesson_id/progress", authMiddleware, lesson.getLessonProgress);
+
 
 module.exports = router;

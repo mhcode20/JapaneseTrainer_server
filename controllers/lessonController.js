@@ -139,6 +139,25 @@ exports.getUserLessons = (req, res) => {
   });
 };
 
+exports.getAllLessons = (req, res) => {
+  const userId = req.user.id;
+
+  const sql = `
+    SELECT * from lessons;
+  `;
+
+  db.query(sql, [userId], (err, result) => {
+    if (err) return res.status(500).send(err);
+
+    res.send({
+      status: true,
+      data: result
+    });
+  });
+};
+
+
+
 exports.updateLessonProgress = (req, res) => {
   const userId = req.user.id;
   const { lesson_id, progress } = req.body;
@@ -159,4 +178,100 @@ exports.updateLessonProgress = (req, res) => {
       });
     }
   );
+};
+
+exports.getLessonWordCount = (req, res) => {
+  const { lesson_id } = req.params;
+
+  db.query(
+    "SELECT COUNT(*) AS total_words FROM lesson_vocab WHERE lesson_id = ?",
+    [lesson_id],
+    (err, result) => {
+      if (err) return res.status(500).send(err);
+
+      res.send({
+        status: true,
+        lesson_id,
+        total_words: result[0].total_words
+      });
+    }
+  );
+};
+
+exports.getLessonDetails = (req, res) => {
+  const { lesson_id } = req.params;
+
+  const sql = `
+    SELECT 
+      l.*,
+      COUNT(lv.vocab_id) AS total_words
+    FROM lessons l
+    LEFT JOIN lesson_vocab lv ON l.id = lv.lesson_id
+    WHERE l.id = ?
+    GROUP BY l.id
+  `;
+
+  db.query(sql, [lesson_id], (err, result) => {
+    if (err) return res.status(500).send(err);
+
+    res.send({
+      status: true,
+      data: result[0]
+    });
+  });
+};
+
+exports.getAttemptedWords = (req, res) => {
+  const userId = req.user.id;
+  const { lesson_id } = req.params;
+
+  const sql = `
+    SELECT COUNT(DISTINCT s.vocab_id) AS attempted_words
+    FROM user_word_stats s
+    JOIN lesson_vocab lv ON lv.vocab_id = s.vocab_id
+    WHERE s.user_id = ?
+    AND lv.lesson_id = ?
+  `;
+
+  db.query(sql, [userId, lesson_id], (err, result) => {
+    if (err) return res.status(500).send(err);
+
+    res.send({
+      status: true,
+      lesson_id,
+      attempted_words: result[0].attempted_words
+    });
+  });
+};
+
+exports.getLessonProgress = (req, res) => {
+  const userId = req.user.id;
+  const { lesson_id } = req.params;
+
+  const sql = `
+    SELECT 
+      COUNT(DISTINCT lv.vocab_id) AS total_words,
+      COUNT(DISTINCT s.vocab_id) AS attempted_words
+    FROM lesson_vocab lv
+    LEFT JOIN user_word_stats s 
+      ON s.vocab_id = lv.vocab_id AND s.user_id = ?
+    WHERE lv.lesson_id = ?
+  `;
+
+  db.query(sql, [userId, lesson_id], (err, result) => {
+    if (err) return res.status(500).send(err);
+
+    const total = result[0].total_words;
+    const attempted = result[0].attempted_words;
+
+    const progress = total > 0 ? Math.round((attempted / total) * 100) : 0;
+
+    res.send({
+      status: true,
+      lesson_id,
+      total_words: total,
+      attempted_words: attempted,
+      progress
+    });
+  });
 };
