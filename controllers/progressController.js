@@ -89,6 +89,53 @@ exports.updateProgress = (req, res) => {
   );
 };
 
+
+exports.getVocabProgress = (req, res) => {
+  const userId = req.user.id;
+  const { vocab_id } = req.params; // Get ID from URL parameter
+
+  if (!vocab_id) {
+    return res.status(400).send("Vocabulary ID is required");
+  }
+
+  const sql = `
+    SELECT 
+      attempts, 
+      correct, 
+      wrong, 
+      streak, 
+      last_result,
+      updated_at
+    FROM user_word_stats 
+    WHERE user_id = ? AND vocab_id = ?
+  `;
+
+  db.query(sql, [userId, vocab_id], (err, result) => {
+    if (err) {
+      return res.status(500).send(err);
+    }
+
+    if (result.length === 0) {
+      // Return a "neutral" state if the user hasn't practiced this word yet
+      return res.status(200).json({
+        message: "No progress recorded for this word",
+        stats: {
+          attempts: 0,
+          correct: 0,
+          wrong: 0,
+          streak: 0,
+          last_result: null
+        }
+      });
+    }
+
+    res.status(200).json({
+      vocab_id,
+      stats: result[0]
+    });
+  });
+};
+
 exports.getWeakWords = (req, res) => {
   const userId = req.user.id;
 

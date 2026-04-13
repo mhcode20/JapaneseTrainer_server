@@ -11,7 +11,7 @@ router.post("/add-vocab", authMiddleware, lesson.addVocabToLesson);
 router.get("/:lesson_id/words", authMiddleware, lesson.getLessonWords);
 
 // get MCQ from lesson
-router.get("/:lesson_id/mcq", authMiddleware, lesson.getLessonMCQ);
+router.get("/:lesson_id/mcq", authMiddleware, lesson.getLessonRandomMCQ);
 
 router.post("/enroll", authMiddleware, lesson.enrollLesson);
 router.get("/my-lessons", authMiddleware, lesson.getUserLessons);

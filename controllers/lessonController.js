@@ -101,6 +101,129 @@ exports.getLessonMCQ = (req, res) => {
   });
 };
 
+
+// ✅ 3. Get MCQ from lesson
+exports.getLessonMCQbn = (req, res) => {
+  const { lesson_id } = req.params;
+
+  // Step 1: get random word from lesson
+  const wordSql = `
+    SELECT v.*
+    FROM lesson_vocab lv
+    JOIN vocab v ON v.id = lv.vocab_id
+    WHERE lv.lesson_id = ?
+    ORDER BY RAND()
+    LIMIT 1
+  `;
+
+  db.query(wordSql, [lesson_id], (err, result) => {
+    if (err) return res.status(500).send(err);
+
+    if (result.length === 0) {
+      return res.status(404).send({ message: "No vocab in this lesson" });
+    }
+
+    const word = result[0];
+
+    // Step 2: get wrong options from same lesson
+    const optionSql = `
+      SELECT v.bangla
+      FROM lesson_vocab lv
+      JOIN vocab v ON v.id = lv.vocab_id
+      WHERE lv.lesson_id = ? AND v.id != ?
+      ORDER BY RAND()
+      LIMIT 3
+    `;
+
+    db.query(optionSql, [lesson_id, word.id], (err2, wrongOptions) => {
+      if (err2) return res.status(500).send(err2);
+
+      const options = [
+        word.bangla,
+        ...wrongOptions.map(o => o.bangla)
+      ].sort(() => Math.random() - 0.5);
+
+      res.send({
+        id: word.id,
+        romaji: word.romaji,
+        kanji: word.kanji,
+        bangla: word.bangla,
+        uccharon: word.uccharon,
+        question: word.hiragana,
+        type:"hiragana",
+        correct: word.bangla,
+        options
+      });
+    });
+  });
+};
+exports.getLessonMCQReverseBn = (req, res) => {
+  const { lesson_id } = req.params;
+
+  // Step 1: Get a random word from the lesson
+  const wordSql = `
+    SELECT v.*
+    FROM lesson_vocab lv
+    JOIN vocab v ON v.id = lv.vocab_id
+    WHERE lv.lesson_id = ?
+    ORDER BY RAND()
+    LIMIT 1
+  `;
+
+  db.query(wordSql, [lesson_id], (err, result) => {
+    if (err) return res.status(500).send(err);
+
+    if (result.length === 0) {
+      return res.status(404).send({ message: "No vocab in this lesson" });
+    }
+
+    const word = result[0];
+
+    // Step 2: Get wrong options (Hiragana) from the same lesson
+    const optionSql = `
+      SELECT v.hiragana
+      FROM lesson_vocab lv
+      JOIN vocab v ON v.id = lv.vocab_id
+      WHERE lv.lesson_id = ? AND v.id != ?
+      ORDER BY RAND()
+      LIMIT 3
+    `;
+
+    db.query(optionSql, [lesson_id, word.id], (err2, wrongOptions) => {
+      if (err2) return res.status(500).send(err2);
+
+      // We collect the correct hiragana and the 3 wrong ones
+      const options = [
+        word.hiragana,
+        ...wrongOptions.map(o => o.hiragana)
+      ].sort(() => Math.random() - 0.5);
+
+      res.send({
+        id: word.id,
+        romaji: word.romaji,
+        kanji: word.kanji,
+        bangla: word.bangla,
+        uccharon: word.uccharon,
+        question: word.bangla,
+        type:"bangla",   // Question is now Bangla
+        correct: word.hiragana,  // Correct answer is Hiragana
+        options: options         // Options are now Hiragana
+      });
+    });
+  });
+};
+
+exports.getLessonRandomMCQ = (req, res) => {
+  // Generates 0 or 1
+  const pick = Math.floor(Math.random() * 3);
+
+  if (pick === 0) {
+    return exports.getLessonMCQReverseBn(req, res);
+  } else {
+    return exports.getLessonMCQbn(req, res);
+  }
+};
+
 exports.enrollLesson = (req, res) => {
   const userId = req.user.id;
   const { lesson_id } = req.body;
