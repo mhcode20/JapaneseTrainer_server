@@ -367,7 +367,7 @@ exports.getAttemptedWords = (req, res) => {
   });
 };
 
-exports.getLessonProgress = (req, res) => {
+exports.getLessonProgressxxx = (req, res) => {
   const userId = req.user.id;
   const { lesson_id } = req.params;
 
@@ -395,6 +395,86 @@ exports.getLessonProgress = (req, res) => {
       total_words: total,
       attempted_words: attempted,
       progress
+    });
+  });
+};
+
+
+
+
+
+
+// #########################################################
+// #################### Progress #########################
+// #########################################################
+
+
+exports.getLessonProgress = (req, res) => {
+  const userId = req.user.id;
+  const lessonId = req.params.lesson_id;
+
+  const sql = `
+    SELECT 
+      l.id AS lesson_id,
+      l.title AS lesson_name,
+
+      COUNT(DISTINCT v.id) AS total_vocab,
+
+      COUNT(DISTINCT s.vocab_id) AS attempted_vocab,
+
+      COALESCE(SUM(s.attempts), 0) AS total_attempts,
+      COALESCE(SUM(s.correct), 0) AS total_correct,
+      COALESCE(SUM(s.wrong), 0) AS total_wrong,
+
+      CASE 
+        WHEN SUM(s.attempts) > 0 
+        THEN (SUM(s.correct) * 100.0 / NULLIF(SUM(s.attempts), 0))
+        ELSE 0
+      END AS accuracy,
+
+      COUNT(CASE 
+        WHEN (s.correct * 100.0 / NULLIF(s.attempts, 0)) >= 80 
+        AND s.attempts >= 10
+        AND s.streak >= 4
+        THEN 1 
+      END) AS mastered_words
+
+    FROM lessons l
+    JOIN lesson_vocab vl ON vl.lesson_id = l.id
+    JOIN vocab v ON v.id = vl.vocab_id
+    LEFT JOIN user_word_stats s 
+      ON s.vocab_id = v.id AND s.user_id = ?
+
+    WHERE l.id = ?
+
+    GROUP BY l.id, l.title;
+  `;
+
+  db.query(sql, [userId, lessonId], (err, result) => {
+    if (err) return res.status(500).send(err);
+
+    if (result.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Lesson not found"
+      });
+    }
+
+    const data = result[0];
+
+    res.json({
+      success: true,
+      data: {
+        lesson_id: data.lesson_id,
+        lesson_name: data.lesson_name,
+        total_vocab: Number(data.total_vocab),
+        attempted_vocab: Number(data.attempted_vocab),
+        total_attempts: Number(data.total_attempts),
+        total_correct: Number(data.total_correct),
+        total_wrong: Number(data.total_wrong),
+        accuracy: Number(parseFloat(data.accuracy || 0).toFixed(2)),
+        mastered_words: Number(data.mastered_words)
+      }
     });
   });
 };

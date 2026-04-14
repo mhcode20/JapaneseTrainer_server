@@ -290,3 +290,58 @@ function sendMCQ(res, word, userId) {
     }
   );
 }
+
+
+
+
+
+
+// ###################################################################
+// ###################################################################
+// ###################################################################
+
+exports.getProgressSummary = (req, res) => {
+  const userId = req.user.id;
+
+  const sql = `
+    SELECT 
+      COUNT(*) AS total_vocab,
+      COALESCE(SUM(attempts), 0) AS total_attempts,
+      COALESCE(SUM(correct), 0) AS total_correct,
+      COALESCE(SUM(wrong), 0) AS total_wrong,
+
+      CASE 
+        WHEN SUM(attempts) > 0 
+        THEN (SUM(correct) * 100.0 / NULLIF(SUM(attempts), 0))
+        ELSE 0
+      END AS accuracy,
+
+      MAX(streak) AS best_streak,
+      SUM(CASE WHEN last_result = 'correct' THEN 1 ELSE 0 END) AS total_correct_sessions,
+      SUM(CASE WHEN last_result = 'wrong' THEN 1 ELSE 0 END) AS total_wrong_sessions
+
+    FROM user_word_stats
+    WHERE user_id = ?;
+  `;
+
+  db.query(sql, [userId], (err, result) => {
+    if (err) return res.status(500).send(err);
+
+    const data = result[0];
+
+    res.json({
+      success: true,
+      data: {
+        total_vocab: data.total_vocab,
+        total_attempts: data.total_attempts,
+        total_correct: data.total_correct,
+        total_wrong: data.total_wrong,
+        accuracy: Number(parseFloat(data.accuracy || 0).toFixed(2)),
+        best_streak: data.best_streak,
+        correct_sessions: data.total_correct_sessions,
+        wrong_sessions: data.total_wrong_sessions
+      }
+    });
+    // res.json({tes:"jsldkjf"})
+  });
+};
